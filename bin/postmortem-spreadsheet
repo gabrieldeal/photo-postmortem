@@ -1,0 +1,106 @@
+#!/usr/bin/env ruby
+
+require "byebug"
+require "mini_exiftool_vendored"
+require "optparse"
+require "spreadsheet"
+
+def main
+  options = parse_commandline_options
+
+  start_creation_datetimes = get_photo_creation_datetimes(options[:start_photo_directory])
+  end_creation_datetimes = get_photo_creation_datetimes(options[:end_photo_directory])
+
+  workbook = create_workbook(options[:spreadsheet])
+  add_to_worksheet(worksheet: workbook.worksheet(0),
+                   start_datetimes: start_creation_datetimes,
+                   end_datetimes: end_creation_datetimes)
+  workbook.write(options[:spreadsheet])
+end
+
+def add_datetime(rows, name, datetimes)
+  datetimes.each do |datetime|
+    rows[datetime.to_date] ||= {}
+    rows[datetime.to_date][name] = datetime
+  end
+end
+
+def add_to_worksheet(worksheet:,
+                     start_datetimes:,
+                     end_datetimes:)
+  rows = {}
+  add_datetime(rows, :start, start_datetimes)
+  add_datetime(rows, :end, end_datetimes)
+
+  worksheet.insert_row(0, ['Day', 'Start', 'End'])
+  rows.sort.each do |day, values|
+    worksheet.insert_row(1, [day, values[:start], values[:end]])
+  end
+end
+
+def to_datetime(time)
+  seconds = time.sec + Rational(time.usec, 10**6)
+  offset = Rational(time.utc_offset, 60 * 60 * 24)
+  DateTime.new(time.year, time.month, time.day, time.hour, time.min, seconds, offset)
+end
+
+def create_workbook(spreadsheet_filename)
+  fail "Spreadsheet already exists" if File.exist?(spreadsheet_filename)
+
+  workbook = Spreadsheet::Workbook.new
+  workbook.create_worksheet
+
+  return workbook
+end
+
+def get_photo_creation_datetimes(photo_directory)
+  creation_datetimes = []
+  Dir.entries(photo_directory).each do |photo_filename|
+    photo_path = File.join(photo_directory, photo_filename)
+    next if File.directory?(photo_path)
+    puts "Parsing #{photo_path}..."
+    exif = MiniExiftool.new(photo_path)
+    creation_datetimes << to_datetime(exif.create_date)
+  end
+
+  creation_datetimes
+end
+
+def parse_commandline_options
+  options = {}
+  required_options = []
+  option_parser = OptionParser.new do |opts|
+    opts.banner = "Usage: photo-postmortem OPTIONS"
+
+    required_options << 'spreadsheet'
+    opts.on("--spreadsheet=FILENAME", "The spreadsheet file to create") do |v|
+      options[:spreadsheet] = v
+    end
+
+    required_options << 'start-photo-directory'
+    opts.on("--start-photo-directory=DIRECTORY", "Directory containing start-of-day photos.") do |v|
+      options[:start_photo_directory] = v
+    end
+
+    required_options << 'end-photo-directory'
+    opts.on("--end-photo-directory=DIRECTORY", "Directory containing end-of-day photos.") do |v|
+      options[:end_photo_directory] = v
+    end
+
+    opts.on_tail("--help", "This help message.") do |v|
+      puts opts
+      exit
+    end
+  end
+
+  option_parser.parse!
+
+  required_options.each do |required_option|
+    raise OptionParser::MissingArgument.new("--#{required_option}") if options[required_option.gsub('-', '_').to_sym].nil?
+  end
+
+  return options
+end
+
+main
+
