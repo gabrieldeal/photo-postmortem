@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require "active_support/core_ext/time"
 require "byebug"
 require "mini_exiftool_vendored"
 require "optparse"
@@ -8,29 +9,30 @@ require "spreadsheet"
 def main
   options = parse_commandline_options
 
-  start_creation_datetimes = get_photo_creation_datetimes(options[:start_photo_directory])
-  end_creation_datetimes = get_photo_creation_datetimes(options[:end_photo_directory])
+  start_creation_times = get_photo_creation_times(options[:start_photo_directory], options[:timezone])
+  end_creation_times = get_photo_creation_times(options[:end_photo_directory], options[:timezone])
 
   workbook = create_workbook(options[:spreadsheet])
   add_to_worksheet(worksheet: workbook.worksheet(0),
-                   start_datetimes: start_creation_datetimes,
-                   end_datetimes: end_creation_datetimes)
+                   start_times: start_creation_times,
+                   end_times: end_creation_times)
   workbook.write(options[:spreadsheet])
 end
 
-def add_datetime(rows, name, datetimes)
-  datetimes.each do |datetime|
-    rows[datetime.to_date] ||= {}
-    rows[datetime.to_date][name] = datetime
+def add_time(rows, name, times)
+  times.each do |time|
+    date_str = to_local_date_string(time)
+    rows[date_str] ||= {}
+    rows[date_str][name] = to_local_time_string(time)
   end
 end
 
 def add_to_worksheet(worksheet:,
-                     start_datetimes:,
-                     end_datetimes:)
+                     start_times:,
+                     end_times:)
   rows = {}
-  add_datetime(rows, :start, start_datetimes)
-  add_datetime(rows, :end, end_datetimes)
+  add_time(rows, :start, start_times)
+  add_time(rows, :end, end_times)
 
   worksheet.insert_row(0, ['Day', 'Start', 'End'])
   rows.sort.each do |day, values|
@@ -38,10 +40,12 @@ def add_to_worksheet(worksheet:,
   end
 end
 
-def to_datetime(time)
-  seconds = time.sec + Rational(time.usec, 10**6)
-  offset = Rational(time.utc_offset, 60 * 60 * 24)
-  DateTime.new(time.year, time.month, time.day, time.hour, time.min, seconds, offset)
+def to_local_time_string(time)
+  time.strftime('%Y/%m/%d %H:%M')
+end
+
+def to_local_date_string(time)
+  time.strftime('%Y/%m/%d')
 end
 
 def create_workbook(spreadsheet_filename)
@@ -53,17 +57,23 @@ def create_workbook(spreadsheet_filename)
   return workbook
 end
 
-def get_photo_creation_datetimes(photo_directory)
-  creation_datetimes = []
+def get_photo_creation_times(photo_directory, timezone)
+  creation_times = []
+  print "Reading #{photo_directory}"
   Dir.entries(photo_directory).each do |photo_filename|
     photo_path = File.join(photo_directory, photo_filename)
     next if File.directory?(photo_path)
-    puts "Parsing #{photo_path}..."
+    print "."
+    $stdout.flush
     exif = MiniExiftool.new(photo_path)
-    creation_datetimes << to_datetime(exif.create_date)
-  end
 
-  creation_datetimes
+    creation_time = exif.create_date
+    creation_time = creation_time.in_time_zone(timezone) if timezone
+    creation_times << creation_time
+  end
+  puts ""
+
+  creation_times
 end
 
 def parse_commandline_options
@@ -85,6 +95,11 @@ def parse_commandline_options
     required_options << 'end-photo-directory'
     opts.on("--end-photo-directory=DIRECTORY", "Directory containing end-of-day photos.") do |v|
       options[:end_photo_directory] = v
+    end
+
+    timezones = ActiveSupport::TimeZone.all.map { |tz| tz.name }.sort.join(", ")
+    opts.on("--timezone=NAME", "Name of the timezone for the dates in the spreadsheet. #{timezones}") do |v|
+      options[:timezone] = v
     end
 
     opts.on_tail("--help", "This help message.") do |v|
