@@ -9,13 +9,15 @@ require "spreadsheet"
 def main
   options = parse_commandline_options
 
-  start_creation_times = get_photo_creation_times(options[:start_photo_directory], options[:timezone])
-  end_creation_times = get_photo_creation_times(options[:end_photo_directory], options[:timezone])
+  start_times = get_photo_creation_times(options[:start_photo_directory],
+                                         options[:timezone])
+  end_times = get_photo_creation_times(options[:end_photo_directory],
+                                       options[:timezone])
 
   workbook = create_workbook(options[:spreadsheet])
   add_to_worksheet(worksheet: workbook.worksheet(0),
-                   start_times: start_creation_times,
-                   end_times: end_creation_times)
+                   start_times: start_times,
+                   end_times: end_times)
   workbook.write(options[:spreadsheet])
 end
 
@@ -40,10 +42,10 @@ def add_to_worksheet(worksheet:,
   end
 end
 
+# Without this the Excel spreadsheet shows the time in UTC
 def to_local_time_string(time)
   time.strftime('%Y/%m/%d %H:%M')
 end
-
 def to_local_date_string(time)
   time.strftime('%Y/%m/%d')
 end
@@ -71,7 +73,7 @@ def get_photo_creation_times(photo_directory, timezone)
     creation_time = creation_time.in_time_zone(timezone) if timezone
     creation_times << creation_time
   end
-  puts ""
+  print "\n"
 
   creation_times
 end
@@ -111,7 +113,8 @@ def parse_commandline_options
   option_parser.parse!
 
   required_options.each do |required_option|
-    raise OptionParser::MissingArgument.new("--#{required_option}") if options[required_option.gsub('-', '_').to_sym].nil?
+    next unless options[required_option.gsub('-', '_').to_sym].nil?
+    raise OptionParser::MissingArgument.new("--#{required_option}")
   end
 
   return options
