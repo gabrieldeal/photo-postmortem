@@ -2,8 +2,9 @@
 
 require "active_support/core_ext/time"
 require "byebug"
-require "mini_exiftool_vendored"
+require "find"
 require "optparse"
+require "photo/postmortem/exif"
 require "spreadsheet"
 
 def main
@@ -13,9 +14,12 @@ def main
                                          options[:timezone])
   end_times = get_photo_creation_times(options[:end_photos_directory],
                                        options[:timezone])
+  all_times = get_photo_creation_times(options[:all_photos_directory],
+                                       options[:timezone]) if options[:all_photos_directory]
 
   workbook = create_workbook(options[:spreadsheet])
   add_to_worksheet(worksheet: workbook.worksheet(0),
+                   all_times: all_times,
                    start_times: start_times,
                    end_times: end_times)
   workbook.write(options[:spreadsheet])
@@ -29,16 +33,27 @@ def add_time(rows, name, times)
   end
 end
 
+def incr_time(rows, name, times)
+  times.each do |time|
+    date_str = to_local_date_string(time)
+    rows[date_str] ||= {}
+    rows[date_str][name] ||= 0
+    rows[date_str][name] += 1
+  end
+end
+
 def add_to_worksheet(worksheet:,
+                     all_times:,
                      start_times:,
                      end_times:)
   rows = {}
   add_time(rows, :start, start_times)
   add_time(rows, :end, end_times)
+  incr_time(rows, :all, all_times) if all_times
 
-  worksheet.insert_row(0, ['Day', 'Start', 'End'])
+  worksheet.insert_row(0, ['Day', 'Start', 'End', 'Photo Count'])
   rows.sort.each do |day, values|
-    worksheet.insert_row(1, [day, values[:start], values[:end]])
+    worksheet.insert_row(1, [day, values[:start], values[:end], values[:all]])
   end
 end
 
@@ -62,14 +77,17 @@ end
 def get_photo_creation_times(photos_directory, timezone)
   creation_times = []
   print "Reading #{photos_directory}"
-  Dir.entries(photos_directory).each do |photo_filename|
-    photo_path = File.join(photos_directory, photo_filename)
+  Find.find(photos_directory).each do |photo_path|
     next if File.directory?(photo_path)
     print "."
     $stdout.flush
-    exif = MiniExiftool.new(photo_path)
 
-    creation_time = exif.create_date
+    exif = Photo::Postmortem::Exif.new(photo_path)
+    creation_time = exif.creation_time
+    unless creation_time
+      puts "Unable to get creation date from #{photo_path}. Skipping it."
+      next
+    end
     creation_time = creation_time.in_time_zone(timezone) if timezone
     creation_times << creation_time
   end
@@ -97,6 +115,10 @@ def parse_commandline_options
     required_options << 'end-photos-directory'
     opts.on("--end-photos-directory=DIRECTORY", "Directory containing end-of-day photos.") do |v|
       options[:end_photos_directory] = v
+    end
+
+    opts.on("--all-photos-directory=DIRECTORY", "Directory containing all photos.") do |v|
+      options[:all_photos_directory] = v
     end
 
     timezones = ActiveSupport::TimeZone.all.map { |tz| tz.name }.sort.join(", ")
