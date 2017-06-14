@@ -9,9 +9,9 @@ require "spreadsheet"
 def main
   options = parse_commandline_options
 
-  start_times = get_photo_creation_times(options[:start_photo_directory],
+  start_times = get_photo_creation_times(options[:start_photos_directory],
                                          options[:timezone])
-  end_times = get_photo_creation_times(options[:end_photo_directory],
+  end_times = get_photo_creation_times(options[:end_photos_directory],
                                        options[:timezone])
 
   workbook = create_workbook(options[:spreadsheet])
@@ -59,11 +59,11 @@ def create_workbook(spreadsheet_filename)
   return workbook
 end
 
-def get_photo_creation_times(photo_directory, timezone)
+def get_photo_creation_times(photos_directory, timezone)
   creation_times = []
-  print "Reading #{photo_directory}"
-  Dir.entries(photo_directory).each do |photo_filename|
-    photo_path = File.join(photo_directory, photo_filename)
+  print "Reading #{photos_directory}"
+  Dir.entries(photos_directory).each do |photo_filename|
+    photo_path = File.join(photos_directory, photo_filename)
     next if File.directory?(photo_path)
     print "."
     $stdout.flush
@@ -89,18 +89,18 @@ def parse_commandline_options
       options[:spreadsheet] = v
     end
 
-    required_options << 'start-photo-directory'
-    opts.on("--start-photo-directory=DIRECTORY", "Directory containing start-of-day photos.") do |v|
-      options[:start_photo_directory] = v
+    required_options << 'start-photos-directory'
+    opts.on("--start-photos-directory=DIRECTORY", "Directory containing start-of-day photos.") do |v|
+      options[:start_photos_directory] = v
     end
 
-    required_options << 'end-photo-directory'
-    opts.on("--end-photo-directory=DIRECTORY", "Directory containing end-of-day photos.") do |v|
-      options[:end_photo_directory] = v
+    required_options << 'end-photos-directory'
+    opts.on("--end-photos-directory=DIRECTORY", "Directory containing end-of-day photos.") do |v|
+      options[:end_photos_directory] = v
     end
 
     timezones = ActiveSupport::TimeZone.all.map { |tz| tz.name }.sort.join(", ")
-    opts.on("--timezone=NAME", "Name of the timezone for the dates in the spreadsheet. #{timezones}") do |v|
+    opts.on("--timezone=NAME", "Optional name of the timezone for the dates in the spreadsheet. #{timezones}") do |v|
       options[:timezone] = v
     end
 
