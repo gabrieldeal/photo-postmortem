@@ -12,7 +12,7 @@ Clone the repo.
 
 ## Usage
 
-```postmortem-spreadsheet --help```
+```photo-postmortem --help```
 
 ## Contributing
 
