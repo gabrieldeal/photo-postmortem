@@ -1,11 +1,12 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-require "active_support/core_ext/time"
-require "byebug"
-require "find"
-require "optparse"
-require "photo/postmortem/exif"
-require "spreadsheet"
+require 'active_support/core_ext/time'
+require 'byebug'
+require 'find'
+require 'optparse'
+require 'photo/postmortem/exif'
+require 'spreadsheet'
 
 def main
   options = parse_commandline_options
@@ -14,8 +15,10 @@ def main
                                          options[:timezone])
   end_times = get_photo_creation_times(options[:end_photos_directory],
                                        options[:timezone])
-  all_times = get_photo_creation_times(options[:all_photos_directory],
-                                       options[:timezone]) if options[:all_photos_directory]
+  if options[:all_photos_directory]
+    all_times = get_photo_creation_times(options[:all_photos_directory],
+                                         options[:timezone])
+  end
 
   workbook = create_workbook(options[:spreadsheet])
   add_to_worksheet(worksheet: workbook.worksheet(0),
@@ -61,17 +64,18 @@ end
 def to_local_time_string(time)
   time.strftime('%Y/%m/%d %H:%M')
 end
+
 def to_local_date_string(time)
   time.strftime('%Y/%m/%d')
 end
 
 def create_workbook(spreadsheet_filename)
-  fail "Spreadsheet already exists" if File.exist?(spreadsheet_filename)
+  raise 'Spreadsheet already exists' if File.exist?(spreadsheet_filename)
 
   workbook = Spreadsheet::Workbook.new
   workbook.create_worksheet
 
-  return workbook
+  workbook
 end
 
 def get_photo_creation_times(photos_directory, timezone)
@@ -79,7 +83,7 @@ def get_photo_creation_times(photos_directory, timezone)
   print "Reading #{photos_directory}"
   Find.find(photos_directory).each do |photo_path|
     next if File.directory?(photo_path)
-    print "."
+    print '.'
     $stdout.flush
 
     exif = Photo::Postmortem::Exif.new(photo_path)
@@ -99,25 +103,28 @@ end
 def parse_commandline_options
   options = {}
   required_options = []
-  option_parser = OptionParser.new do |opts|
-    opts.banner = "Usage: photo-postmortem OPTIONS"
+  option_parser = OptionParser.new do |opts| # rubocop:disable BlockLength
+    opts.banner = 'Usage: photo-postmortem OPTIONS'
 
     required_options << 'spreadsheet'
-    opts.on("--spreadsheet=FILENAME", "The spreadsheet file to create") do |v|
+    opts.on('--spreadsheet=FILENAME', 'The spreadsheet file to create') do |v|
       options[:spreadsheet] = v
     end
 
     required_options << 'start-photos-directory'
-    opts.on("--start-photos-directory=DIRECTORY", "Directory containing start-of-day photos.") do |v|
+    opts.on('--start-photos-directory=DIRECTORY',
+            'Directory containing start-of-day photos.') do |v|
       options[:start_photos_directory] = v
     end
 
     required_options << 'end-photos-directory'
-    opts.on("--end-photos-directory=DIRECTORY", "Directory containing end-of-day photos.") do |v|
+    opts.on('--end-photos-directory=DIRECTORY',
+            'Directory containing end-of-day photos.') do |v|
       options[:end_photos_directory] = v
     end
 
-    opts.on("--all-photos-directory=DIRECTORY", "Directory containing all photos.") do |v|
+    opts.on('--all-photos-directory=DIRECTORY',
+            'Directory containing all photos.') do |v|
       options[:all_photos_directory] = v
     end
 
@@ -125,12 +132,14 @@ def parse_commandline_options
     # from the EXIF APIs are all in the system's default timezone.  So
     # all this --timezone option does is shift the offset of all the
     # photos by the same amount.
-    timezones = ActiveSupport::TimeZone.all.map { |tz| tz.name }.sort.join(", ")
-    opts.on("--timezone=NAME", "Optional name of the timezone for the dates in the spreadsheet. #{timezones}") do |v|
+    timezones = ActiveSupport::TimeZone.all.map(&:name).sort.join(', ')
+    opts.on('--timezone=NAME',
+            'Optional name of the timezone for the dates in the spreadsheet.' \
+            " Supported timezones: #{timezones}") do |v|
       options[:timezone] = v
     end
 
-    opts.on_tail("--help", "This help message.") do |v|
+    opts.on_tail('--help', 'This help message.') do
       puts opts
       exit
     end
@@ -139,12 +148,11 @@ def parse_commandline_options
   option_parser.parse!
 
   required_options.each do |required_option|
-    next unless options[required_option.gsub('-', '_').to_sym].nil?
-    raise OptionParser::MissingArgument.new("--#{required_option}")
+    next unless options[required_option.tr('-', '_').to_sym].nil?
+    raise OptionParser::MissingArgument, "--#{required_option}"
   end
 
-  return options
+  options
 end
 
 main
-

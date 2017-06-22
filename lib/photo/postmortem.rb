@@ -1,7 +1,3 @@
-require "photo/postmortem/version"
+# frozen_string_literal: true
 
-module Photo
-  module Postmortem
-    # Your code goes here...
-  end
-end
+require 'photo/postmortem/version'

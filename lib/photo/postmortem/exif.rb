@@ -1,8 +1,11 @@
-require "exif"
-require "mini_exiftool_vendored"
+# frozen_string_literal: true
+
+require 'exif'
+require 'mini_exiftool_vendored'
 
 module Photo
   module Postmortem
+    # Hide the difference between the different EXIF parsers we use.
     class Exif
       attr_accessor :creation_time,
                     :creator
