@@ -8,11 +8,14 @@ I doubt the non-existent reader of this README wants to use these tools.
 
 ## Installation
 
-Clone the repo.
+1. Clone the repo.
+1. `sudo apt-get install libexif-dev`
+1. `gem install bundle`
+1. `bundle`
 
 ## Usage
 
-```photo-postmortem --help```
+`bundle exec photo-postmortem --help`
 
 ## Contributing
 
