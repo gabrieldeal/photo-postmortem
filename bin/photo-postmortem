@@ -11,10 +11,13 @@ require 'spreadsheet'
 def main
   options = parse_commandline_options
 
-  start_times = get_photo_creation_times(options[:start_photos_directory],
+  if options[:start_photos_directory] && options[:end_photos_directory]
+    start_times = get_photo_creation_times(options[:start_photos_directory],
+                                           options[:timezone])
+    end_times = get_photo_creation_times(options[:end_photos_directory],
                                          options[:timezone])
-  end_times = get_photo_creation_times(options[:end_photos_directory],
-                                       options[:timezone])
+  end
+
   if options[:all_photos_directory]
     all_times = get_photo_creation_times(options[:all_photos_directory],
                                          options[:timezone])
@@ -50,8 +53,8 @@ def add_to_worksheet(worksheet:,
                      start_times:,
                      end_times:)
   rows = {}
-  add_time(rows, :start, start_times)
-  add_time(rows, :end, end_times)
+  add_time(rows, :start, start_times) if start_times
+  add_time(rows, :end, end_times) if end_times
   incr_time(rows, :all, all_times) if all_times
 
   worksheet.insert_row(0, ['Date', 'Start', 'End', 'Photo Count'])
@@ -111,13 +114,11 @@ def parse_commandline_options
       options[:spreadsheet] = v
     end
 
-    required_options << 'start-photos-directory'
     opts.on('--start-photos-directory=DIRECTORY',
             'Directory containing start-of-day photos.') do |v|
       options[:start_photos_directory] = v
     end
 
-    required_options << 'end-photos-directory'
     opts.on('--end-photos-directory=DIRECTORY',
             'Directory containing end-of-day photos.') do |v|
       options[:end_photos_directory] = v
