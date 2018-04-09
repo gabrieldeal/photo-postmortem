@@ -54,9 +54,9 @@ def add_to_worksheet(worksheet:,
   add_time(rows, :end, end_times)
   incr_time(rows, :all, all_times) if all_times
 
-  worksheet.insert_row(0, ['Day', 'Start', 'End', 'Photo Count'])
-  rows.sort.each do |day, values|
-    worksheet.insert_row(1, [day, values[:start], values[:end], values[:all]])
+  worksheet.insert_row(0, ['Date', 'Start', 'End', 'Photo Count'])
+  rows.sort.each do |date, values|
+    worksheet.insert_row(1, [date, values[:start], values[:end], values[:all]])
   end
 end
 
