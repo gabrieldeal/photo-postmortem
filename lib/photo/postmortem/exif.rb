@@ -20,8 +20,8 @@ module Photo
         self.creation_time = exif.date_time_original
         self.creator = exif.artist
         true
-      rescue
-        return false
+      rescue RuntimeError # File not readable or no EXIF data in file
+        false
       end
 
       # This is slow but supports almost all image formats.

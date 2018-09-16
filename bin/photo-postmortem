@@ -86,6 +86,7 @@ def get_photo_creation_times(photos_directory, timezone)
   print "Reading #{photos_directory}"
   Find.find(photos_directory).each do |photo_path|
     next if File.directory?(photo_path)
+
     print '.'
     $stdout.flush
 
@@ -150,6 +151,7 @@ def parse_commandline_options
 
   required_options.each do |required_option|
     next unless options[required_option.tr('-', '_').to_sym].nil?
+
     raise OptionParser::MissingArgument, "--#{required_option}"
   end
 
