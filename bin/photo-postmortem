@@ -23,11 +23,11 @@ def main
                                          options[:timezone])
   end
 
-  workbook = create_workbook(options[:spreadsheet])
   add_to_worksheet(worksheet: workbook.worksheet(0),
                    all_times: all_times,
                    start_times: start_times,
                    end_times: end_times)
+  workbook = create_workbook
   workbook.write(options[:spreadsheet])
 end
 
@@ -72,9 +72,9 @@ def to_local_date_string(time)
   time.strftime('%Y/%m/%d')
 end
 
-def create_workbook(spreadsheet_filename)
   raise 'Spreadsheet already exists' if File.exist?(spreadsheet_filename)
 
+def create_workbook
   workbook = Spreadsheet::Workbook.new
   workbook.create_worksheet
 
