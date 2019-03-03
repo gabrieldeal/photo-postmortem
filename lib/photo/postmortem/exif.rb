@@ -20,7 +20,7 @@ module Photo
         self.creation_time = exif.date_time_original
         self.creator = exif.artist
         true
-      rescue RuntimeError # File not readable or no EXIF data in file
+      rescue ::Exif::NotReadable
         false
       end
 
