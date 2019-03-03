@@ -72,8 +72,6 @@ def to_local_date_string(time)
   time.strftime('%Y/%m/%d')
 end
 
-  raise 'Spreadsheet already exists' if File.exist?(spreadsheet_filename)
-
 def create_workbook
   workbook = Spreadsheet::Workbook.new
   workbook.create_worksheet
