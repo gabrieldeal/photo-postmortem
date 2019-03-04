@@ -19,15 +19,26 @@ def main
   end
 
   if options[:all_photos_directory]
-    all_times = get_photo_creation_times(options[:all_photos_directory],
-                                         options[:timezone])
+    all_times, focal_lengths = get_photo_metadata(
+      options[:all_photos_directory],
+      options[:timezone]
+    )
   end
 
-  add_to_worksheet(worksheet: workbook.worksheet(0),
-                   all_times: all_times,
-                   start_times: start_times,
-                   end_times: end_times)
   workbook = create_workbook
+  add_to_date_worksheet(worksheet: workbook.worksheet(0),
+                        all_times: all_times,
+                        start_times: start_times,
+                        end_times: end_times)
+
+  by_camera_focal_lengths = focal_lengths.reject { |key| key == 'all' }
+  add_to_focal_length_worksheet(worksheet: workbook.worksheet(1),
+                                focal_lengths: by_camera_focal_lengths)
+
+  all_focal_lengths = focal_lengths.slice('all')
+  add_to_focal_length_worksheet(worksheet: workbook.worksheet(2),
+                                focal_lengths: all_focal_lengths)
+
   workbook.write(options[:spreadsheet])
 end
 
@@ -48,10 +59,20 @@ def incr_time(rows, name, times)
   end
 end
 
-def add_to_worksheet(worksheet:,
-                     all_times:,
-                     start_times:,
-                     end_times:)
+def add_to_focal_length_worksheet(worksheet:,
+                                  focal_lengths:)
+  worksheet.insert_row(0, ['Camera', 'Focal Length', 'Count'])
+  focal_lengths.each do |camera, counts|
+    counts.each do |focal_length, count|
+      worksheet.insert_row(1, [camera, focal_length, count])
+    end
+  end
+end
+
+def add_to_date_worksheet(worksheet:,
+                          all_times:,
+                          start_times:,
+                          end_times:)
   rows = {}
   add_time(rows, :start, start_times) if start_times
   add_time(rows, :end, end_times) if end_times
@@ -75,35 +96,52 @@ end
 def create_workbook
   workbook = Spreadsheet::Workbook.new
   workbook.create_worksheet
+  workbook.create_worksheet
+  workbook.create_worksheet
 
   workbook
 end
 
-def get_photo_creation_times(photos_directory, timezone)
+def get_photo_metadata(photos_directories, timezone)
   creation_times = []
-  print "Reading #{photos_directory}"
-  Find.find(photos_directory).each do |photo_path|
-    next if File.directory?(photo_path)
+  focal_lengths = {}
+  photos_directories.each do |photos_directory|
+    print "Reading #{photos_directory}"
+    Find.find(photos_directory).each do |photo_path|
+      next if File.directory?(photo_path)
 
-    print '.'
-    $stdout.flush
+      print '.'
+      $stdout.flush
 
-    exif = Photo::Postmortem::Exif.new(photo_path)
-    creation_time = exif.creation_time
-    unless creation_time
-      puts "Unable to get creation date from #{photo_path}. Skipping it."
-      next
+      exif = Photo::Postmortem::Exif.new(photo_path)
+      if exif.focal_length
+        focal_lengths['all'] ||= {}
+        focal_lengths['all'][exif.focal_length] ||= 0
+        focal_lengths['all'][exif.focal_length] += 1
+
+        focal_lengths[exif.camera] ||= {}
+        focal_lengths[exif.camera][exif.focal_length] ||= 0
+        focal_lengths[exif.camera][exif.focal_length] += 1
+      end
+
+      creation_time = exif.creation_time
+      unless creation_time
+        puts "Unable to get creation date from #{photo_path}. Skipping it."
+        next
+      end
+      creation_time = creation_time.in_time_zone(timezone) if timezone
+      creation_times << creation_time
     end
-    creation_time = creation_time.in_time_zone(timezone) if timezone
-    creation_times << creation_time
+    print "\n"
   end
-  print "\n"
 
-  creation_times
+  [creation_times, focal_lengths]
 end
 
 def parse_commandline_options
-  options = {}
+  options = {
+    all_photos_directory: []
+  }
   required_options = []
   option_parser = OptionParser.new do |opts| # rubocop:disable BlockLength
     opts.banner = 'Usage: photo-postmortem OPTIONS'
@@ -125,7 +163,7 @@ def parse_commandline_options
 
     opts.on('--all-photos-directory=DIRECTORY',
             'Directory containing all photos.') do |v|
-      options[:all_photos_directory] = v
+      options[:all_photos_directory].push(v)
     end
 
     # EXIF does not store timezone information, so the times we get
