@@ -6,6 +6,7 @@ require 'byebug'
 require 'find'
 require 'optparse'
 require 'photo/postmortem/exif'
+require 'photo/postmortem/reader'
 require 'spreadsheet'
 
 def main
@@ -103,8 +104,7 @@ def create_workbook
 end
 
 def get_photo_metadata(photos_directories, timezone)
-  creation_times = []
-  focal_lengths = {}
+  reader = Photo::Postmortem::Reader.new(timezone: timezone)
   photos_directories.each do |photos_directory|
     print "Reading #{photos_directory}"
     Find.find(photos_directory).each do |photo_path|
@@ -113,29 +113,12 @@ def get_photo_metadata(photos_directories, timezone)
       print '.'
       $stdout.flush
 
-      exif = Photo::Postmortem::Exif.new(photo_path)
-      if exif.focal_length
-        focal_lengths['all'] ||= {}
-        focal_lengths['all'][exif.focal_length] ||= 0
-        focal_lengths['all'][exif.focal_length] += 1
-
-        focal_lengths[exif.camera] ||= {}
-        focal_lengths[exif.camera][exif.focal_length] ||= 0
-        focal_lengths[exif.camera][exif.focal_length] += 1
-      end
-
-      creation_time = exif.creation_time
-      unless creation_time
-        puts "Unable to get creation date from #{photo_path}. Skipping it."
-        next
-      end
-      creation_time = creation_time.in_time_zone(timezone) if timezone
-      creation_times << creation_time
+      reader.process(photo_path)
     end
     print "\n"
   end
 
-  [creation_times, focal_lengths]
+  [reader.creation_times, reader.focal_lengths]
 end
 
 def parse_commandline_options
