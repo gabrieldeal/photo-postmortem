@@ -13,10 +13,10 @@ def main
   options = parse_commandline_options
 
   if options[:start_photos_directory] && options[:end_photos_directory]
-    start_times = get_photo_creation_times(options[:start_photos_directory],
-                                           options[:timezone])
-    end_times = get_photo_creation_times(options[:end_photos_directory],
-                                         options[:timezone])
+    start_times, _unused = get_photo_metadata([options[:start_photos_directory]],
+                                              options[:timezone])
+    end_times, _unused = get_photo_metadata([options[:end_photos_directory]],
+                                            options[:timezone])
   end
 
   if options[:all_photos_directory]
