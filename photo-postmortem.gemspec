@@ -37,10 +37,10 @@ Gem::Specification.new do |spec| # rubocop:disable Metrics/BlockLength
   spec.add_development_dependency 'bundler', '~> 2.0.0'
   spec.add_development_dependency 'byebug', '~> 11.0'
   spec.add_development_dependency 'minitest', '~> 5.0'
-  spec.add_development_dependency 'rake', '~> 12'
+  spec.add_development_dependency 'rake', '~> 13'
   spec.add_development_dependency 'rubocop', '~> 0.49'
 
-  spec.add_runtime_dependency 'activesupport', '~> 5.1'
+  spec.add_runtime_dependency 'activesupport', '~> 6.0'
   spec.add_runtime_dependency 'exif', '~> 2.2'
   spec.add_runtime_dependency 'mini_exiftool_vendored', '~> 9.2'
   spec.add_runtime_dependency 'spreadsheet', '~> 1.1'
